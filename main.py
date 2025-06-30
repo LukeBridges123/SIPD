@@ -9,15 +9,16 @@ from grid import Grid
 pygame.init()
 clock = pygame.time.Clock()
 # Define grid size
-n, m = 100, 500
+n, m = 50, 50
 
-strategies = [always_cooperate, always_defect, tit_for_tat, pavlov]
-colors = {"Always cooperate" : (0, 255, 0), "Always defect": (255, 0, 0), "Tit-for-tat": (0, 0, 255), "Pavlov": (255, 150, 0)}
+strategies = [always_cooperate, always_defect, tit_for_tat, pavlov, revenger, tf2t]
+colors = {"Always cooperate" : (0, 255, 0), "Always defect": (255, 0, 0), "Tit-for-tat": (0, 0, 255), "Pavlov": (255, 150, 0),
+          "Revenger": (150, 60, 150), "Tit-for-two-tats": (60, 150, 150)}
 board = Grid(strategies=strategies, rows=n, cols=m, game=prisoners_dilemma, rounds=1000, noise=0, mutation_rate = 0)
 board.populate_randomly()
 
 # Define the size of each square
-square_size = 1
+square_size = 5
 
 # Calculate window size
 window_width = m * square_size
