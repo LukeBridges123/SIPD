@@ -73,6 +73,32 @@ async def main():
                                  (grid_offset_x + j * square_size, i * square_size,
                                   square_size, square_size))
 
+        # Draw legend to the right of the grid
+        legend_x = grid_offset_x + grid_width + 20  # 20px margin from grid
+        legend_y_start = 50  # Start position from top
+        legend_item_height = 35  # Space between legend items
+        legend_square_size = 15  # Size of color squares in legend
+        
+        # Legend title
+        legend_title = font_large.render("Strategies:", True, (0, 0, 0))
+        window.blit(legend_title, (legend_x, legend_y_start - 30))
+        
+        # Draw each strategy in the legend
+        for i, (strategy_name, color) in enumerate(colors.items()):
+            y_pos = legend_y_start + i * legend_item_height
+            
+            # Draw colored square
+            pygame.draw.rect(window, color, 
+                           (legend_x, y_pos, legend_square_size, legend_square_size))
+            
+            # Draw black border around the square for clarity
+            pygame.draw.rect(window, (0, 0, 0), 
+                           (legend_x, y_pos, legend_square_size, legend_square_size), 1)
+            
+            # Draw strategy name
+            strategy_text = font_small.render(strategy_name, True, (0, 0, 0))
+            window.blit(strategy_text, (legend_x + legend_square_size + 8, y_pos - 2))
+
         # Draw UI panel background
         pygame.draw.rect(window, (240, 240, 240), (0, grid_height, window_width, ui_panel_height))
         
