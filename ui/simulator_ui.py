@@ -369,12 +369,11 @@ class SimulatorUI:
         self.btn_play.text = "Pause" if not self.sim.paused else "Play"
 
     def draw(self):
-        """Draw the complete UI"""
+        """Draw the complete UI (caller is responsible for pygame.display.flip())"""
         self.window.fill(self.theme.BG_COLOR)
         self._draw_grid()
         self._draw_sidebar()
         self._draw_bottom_panel()
-        pygame.display.flip()
 
     def update_controls(self, mouse_pos):
         """Update hover states for all interactive elements"""

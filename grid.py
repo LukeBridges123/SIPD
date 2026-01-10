@@ -91,3 +91,22 @@ class Grid:
                 else:
                     new_board[row][col] = self.get_max_of_neighbors(score_grid, row, col)
         self.board = new_board
+
+    def get_census(self):
+        """Count cells for each strategy. Returns dict of {strategy_name: count}"""
+        counts = {}
+        for strategy in self.strategies:
+            counts[str(strategy)] = 0
+
+        for row in range(self.rows):
+            for col in range(self.cols):
+                strategy_name = str(self.strategies[self.board[row][col]])
+                counts[strategy_name] += 1
+
+        return counts
+
+    def get_census_percentages(self):
+        """Get percentage of cells for each strategy. Returns dict of {strategy_name: percentage}"""
+        counts = self.get_census()
+        total = self.rows * self.cols
+        return {name: (count / total) * 100 for name, count in counts.items()}
