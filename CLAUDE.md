@@ -25,7 +25,8 @@ pygbag main.py
 - **P**: Toggle play/pause (auto-step)
 - **R**: Restart with same seed
 - **N**: Restart with new seed
-- **ESC**: Quit
+- **S**: Toggle stats view (or click Stats/Grid button)
+- **ESC**: Quit (or return to grid from stats view)
 - **Double-click parameter values**: Edit directly
 
 ## Architecture
@@ -45,9 +46,9 @@ The codebase is organized into modular components:
   - Cells copy the strategy of their highest-scoring neighbor (ties favor current strategy)
 
 - **`main.py`** - Application entry point and game state
-  - `SimulationState` class manages simulation parameters and board state
-  - `main()` async function contains event loop
-  - Delegates rendering to UI module
+  - `SimulationState` class manages simulation parameters, board state, and census history
+  - `main()` async function contains event loop with screen switching (simulator/stats)
+  - Delegates rendering to UI modules (`SimulatorUI`, `StatsUI`)
 
 ### UI Package (`ui/`)
 
@@ -64,6 +65,12 @@ Modular UI components for visualization and interaction:
 - **`ui/simulator_ui.py`** - Main simulation screen
   - `SimulatorUI` class handles all rendering and UI interaction
   - Grid visualization, sidebar legend, parameter panel, control buttons
+
+- **`ui/stats_ui.py`** - Statistics/census view
+  - `StatsUI` class displays population analytics
+  - Census bars showing current percentage of each strategy
+  - Time series chart tracking strategy proportions over generations
+  - Layout adapts dynamically to number of strategies
 
 - **`ui/__init__.py`** - Clean import interface
 
@@ -92,9 +99,17 @@ To modify appearance:
 - Button styles and component behavior in `ui/components.py`
 - Rendering logic in `ui/simulator_ui.py`
 
+## Multiple Views
+
+The application supports two views, toggled with S key or Stats/Grid button:
+- **Simulator view** - Main grid visualization with controls and parameters
+- **Stats view** - Population statistics with census bars and time series chart
+
+Census data is tracked in `SimulationState.census_history` (list of `{strategy_name: percentage}` dicts), recorded each generation via `record_census()`.
+
 ## Future Extensions
 
-The architecture supports multiple screens/views:
+The architecture supports additional screens/views:
 - UI components are reusable across different screens
 - Theme system allows easy visual customization
-- `SimulatorUI` can be wrapped in a Screen abstraction when needed
+- New views can follow the `StatsUI` pattern (class with `draw()` method)
