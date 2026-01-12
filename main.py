@@ -8,7 +8,8 @@ import asyncio
 import pygame
 import sys
 import random
-from strategies import always_defect, always_cooperate, tit_for_tat, pavlov, revenger, prisoners_dilemma, tf2t
+from strategies import (always_defect, always_cooperate, tit_for_tat, pavlov, revenger,
+                        prisoners_dilemma, tf2t, generous, prober)
 from grid import Grid
 from ui import DEFAULT_THEME, SimulatorUI, StatsUI, MixUI
 from ui.components import Button
@@ -27,14 +28,16 @@ class SimulationState:
     DEFAULT_SPEED = 10  # steps per second
 
     def __init__(self):
-        self.strategies = [always_cooperate, always_defect, tit_for_tat, pavlov, revenger, tf2t]
+        self.strategies = [always_cooperate, always_defect, tit_for_tat, pavlov, revenger, tf2t, generous, prober]
         self.colors = {
             "Always cooperate": (46, 204, 113),    # Emerald green
             "Always defect": (231, 76, 60),         # Alizarin red
             "Tit-for-tat": (52, 152, 219),          # Peter river blue
             "Pavlov": (243, 156, 18),               # Orange
             "Revenger": (155, 89, 182),             # Amethyst purple
-            "Tit-for-two-tats": (26, 188, 156)      # Turquoise
+            "Tit-for-two-tats": (26, 188, 156),    # Turquoise
+            "Generous": (241, 196, 15),             # Sunflower yellow
+            "Prober": (192, 57, 43)                 # Pomegranate red
         }
 
         # Strategy weights for initial population (default: equal weights)

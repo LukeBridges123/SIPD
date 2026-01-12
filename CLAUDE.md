@@ -40,7 +40,7 @@ The codebase is organized into modular components:
   - `Game` class with payoff matrix (standard prisoner's dilemma)
   - `Strategy` class wrapping callable strategy functions
   - `compute_matchup_table()` pre-computes all strategy pairs
-  - Available strategies: Always Cooperate, Always Defect, Tit-for-Tat, Pavlov, Revenger, Tit-for-Two-Tats
+  - Available strategies: Always Cooperate, Always Defect, Tit-for-Tat, Pavlov, Revenger, Tit-for-Two-Tats, Generous, Prober
 
 - **`grid.py`** - 2D grid cellular automaton with wrapping edges
   - `Grid.update_grid()` is the core evolution step

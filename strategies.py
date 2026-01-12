@@ -155,3 +155,39 @@ def tit_for_two_tats_strategy(my_history: list[int], opponent_history: list[int]
     return 1
 
 tf2t = Strategy(tit_for_two_tats_strategy, "Tit-for-two-tats", "2")
+
+
+def generous_strategy(my_history: list[int], opponent_history: list[int]) -> int:
+    """Cooperate 95% of the time, defect 5% randomly."""
+    if random.random() < 0.05:
+        return 0
+    return 1
+
+generous = Strategy(generous_strategy, "Generous", "G")
+
+
+def prober_strategy(my_history: list[int], opponent_history: list[int]) -> int:
+    """Start with C, D, D to test opponent. If they don't retaliate, exploit. Otherwise play TFT.
+
+    Sequence:
+    - Round 0: Cooperate
+    - Round 1-2: Defect (probe)
+    - Round 3+: If opponent cooperated on rounds 2 AND 3, they're a sucker - defect forever.
+                Otherwise, play Tit-for-Tat.
+    """
+    round_num = len(my_history)
+
+    if round_num == 0:
+        return 1  # Cooperate first
+    elif round_num <= 2:
+        return 0  # Defect to probe
+
+    # After probing, check if opponent retaliated
+    # If opponent cooperated on rounds 2 and 3 despite our defections, exploit them
+    if len(opponent_history) >= 3 and opponent_history[1] == 1 and opponent_history[2] == 1:
+        return 0  # Exploit the sucker
+
+    # Otherwise, play Tit-for-Tat
+    return opponent_history[-1]
+
+prober = Strategy(prober_strategy, "Prober", "B")
