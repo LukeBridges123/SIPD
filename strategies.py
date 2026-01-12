@@ -32,11 +32,33 @@ class Strategy:
 
 
 # table[i][j] = payoff for strategy i if it plays against strategy j
-def compute_matchup_table(strategies: list[Strategy], game: Game, rounds: int, noise: float = 0)-> list[list[int]]:
+def compute_matchup_table(strategies: list[Strategy], game: Game, rounds: int, noise: float = 0, matches: int = 1) -> list[list[int]]:
+    """Compute matchup table by playing multiple matches between each strategy pair.
+
+    Args:
+        strategies: List of strategies to compare
+        game: The game to play (e.g., prisoner's dilemma)
+        rounds: Number of rounds per match
+        noise: Probability of random move (0-1)
+        matches: Number of matches to play between each pair (results are averaged)
+
+    Returns:
+        2D table where table[i][j] = average payoff for strategy i vs strategy j
+    """
+    matches = max(1, matches)  # At least 1 match
     matchups = [[0 for i in range(len(strategies))] for j in range(len(strategies))]
+
     for i in range(len(strategies)):
         for j in range(i, len(strategies)):
-            matchups[i][j], matchups[j][i] = play_iterated_game(strategies[i], strategies[j], game, rounds, noise)
+            total_i, total_j = 0, 0
+            for _ in range(matches):
+                score_i, score_j = play_iterated_game(strategies[i], strategies[j], game, rounds, noise)
+                total_i += score_i
+                total_j += score_j
+            # Store average scores (as integers for compatibility)
+            matchups[i][j] = total_i // matches
+            matchups[j][i] = total_j // matches
+
     return matchups
 
 

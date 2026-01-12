@@ -3,7 +3,7 @@ import random
 
 class Grid:
     def __init__(self, strategies: list[Strategy], rows: int, cols: int, game: Game, rounds: int, noise: float = 0,
-                 mutation_rate: float = 0):
+                 mutation_rate: float = 0, matches: int = 1):
         if rows < 3 or cols < 3:
             raise ValueError("Board too small")
         if len(strategies) < 1:
@@ -14,7 +14,7 @@ class Grid:
         # this can be changed with populate_randomly and set_grid.
         self.board = [[0 for i in range(cols)] for j in range(rows)]
         self.strategies = strategies
-        self.matchups = compute_matchup_table(strategies, game, rounds, noise=noise)
+        self.matchups = compute_matchup_table(strategies, game, rounds, noise=noise, matches=matches)
         self.mutation_rate = mutation_rate
 
     def __str__(self):

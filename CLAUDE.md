@@ -95,7 +95,8 @@ Modular UI components for visualization and interaction:
 Parameters are managed by `SimulationState` in `main.py`:
 
 - `grid_rows`, `grid_cols` - Grid dimensions (default: 50x50)
-- `rounds` - IPD rounds per matchup (default: 1000)
+- `rounds` - IPD rounds per match (default: 100)
+- `matches` - Number of matches played between each strategy pair; results are averaged (default: 10)
 - `noise` - Probability of action flip during play (0-1)
 - `mutation_rate` - Probability of random strategy change per generation (0-1)
 

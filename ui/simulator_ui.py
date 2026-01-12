@@ -159,7 +159,12 @@ class SimulatorUI:
         )
         self.param_rounds = ParameterControl(
             sidebar_x + 15, 0, control_width,
-            "Rounds", self.sim.rounds, 10, 10000, 100,
+            "Rounds", self.sim.rounds, 10, 1000, 10,
+            "{:.0f}", requires_restart=True, is_integer=True
+        )
+        self.param_matches = ParameterControl(
+            sidebar_x + 15, 0, control_width,
+            "Matches", self.sim.matches, 1, 100, 1,
             "{:.0f}", requires_restart=True, is_integer=True
         )
         self.param_noise = ParameterControl(
@@ -180,7 +185,7 @@ class SimulatorUI:
 
         self.param_controls = [
             self.param_grid_rows, self.param_grid_cols, self.param_rounds,
-            self.param_noise, self.param_mutation, self.param_speed
+            self.param_matches, self.param_noise, self.param_mutation, self.param_speed
         ]
 
         # Create reset button in bottom panel
@@ -257,6 +262,7 @@ class SimulatorUI:
         self.sim.grid_rows = int(self.param_grid_rows.value)
         self.sim.grid_cols = int(self.param_grid_cols.value)
         self.sim.rounds = int(self.param_rounds.value)
+        self.sim.matches = int(self.param_matches.value)
         self.sim.noise = self.param_noise.value / 100.0
         self.sim.mutation_rate = self.param_mutation.value / 100.0
         self.sim.auto_step_delay = int(1000 / self.param_speed.value) if self.param_speed.value > 0 else 1000
@@ -305,6 +311,7 @@ class SimulatorUI:
         self.param_grid_rows.value = self.sim.grid_rows
         self.param_grid_cols.value = self.sim.grid_cols
         self.param_rounds.value = self.sim.rounds
+        self.param_matches.value = self.sim.matches
         self.param_noise.value = self.sim.noise * 100
         self.param_mutation.value = self.sim.mutation_rate * 100
         self.param_speed.value = SimulationState.DEFAULT_SPEED

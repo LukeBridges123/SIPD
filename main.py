@@ -20,7 +20,8 @@ class SimulationState:
     # Default parameter values
     DEFAULT_GRID_ROWS = 50
     DEFAULT_GRID_COLS = 50
-    DEFAULT_ROUNDS = 1000
+    DEFAULT_ROUNDS = 100
+    DEFAULT_MATCHES = 10
     DEFAULT_NOISE = 0.0
     DEFAULT_MUTATION = 0.0
     DEFAULT_SPEED = 10  # steps per second
@@ -60,6 +61,7 @@ class SimulationState:
         self.grid_rows = self.DEFAULT_GRID_ROWS
         self.grid_cols = self.DEFAULT_GRID_COLS
         self.rounds = self.DEFAULT_ROUNDS
+        self.matches = self.DEFAULT_MATCHES
         self.noise = self.DEFAULT_NOISE
         self.mutation_rate = self.DEFAULT_MUTATION
         self.auto_step_delay = int(1000 / self.DEFAULT_SPEED)
@@ -77,7 +79,8 @@ class SimulationState:
             game=prisoners_dilemma,
             rounds=self.rounds,
             noise=self.noise,
-            mutation_rate=self.mutation_rate
+            mutation_rate=self.mutation_rate,
+            matches=self.matches
         )
 
         # Build weights list in same order as strategies
