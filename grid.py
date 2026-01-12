@@ -25,10 +25,43 @@ class Grid:
             string_rep += "\n"
         return string_rep
 
-    def populate_randomly(self):
-        for i in range(self.rows):
-            for j in range(self.cols):
-                self.board[i][j] = random.randrange(0, len(self.strategies))
+    def populate_randomly(self, weights=None):
+        """Populate the grid with random strategies.
+
+        Args:
+            weights: Optional list of weights for each strategy (same order as self.strategies).
+                     If None, uniform distribution is used. Weights are normalized internally.
+        """
+        num_strategies = len(self.strategies)
+
+        if weights is None:
+            # Uniform distribution
+            for i in range(self.rows):
+                for j in range(self.cols):
+                    self.board[i][j] = random.randrange(0, num_strategies)
+        else:
+            # Weighted distribution using cumulative weights
+            total = sum(weights)
+            if total == 0:
+                # All weights are zero, fall back to uniform
+                for i in range(self.rows):
+                    for j in range(self.cols):
+                        self.board[i][j] = random.randrange(0, num_strategies)
+            else:
+                # Build cumulative distribution
+                cumulative = []
+                running = 0
+                for w in weights:
+                    running += w / total
+                    cumulative.append(running)
+
+                for i in range(self.rows):
+                    for j in range(self.cols):
+                        r = random.random()
+                        for idx, threshold in enumerate(cumulative):
+                            if r <= threshold:
+                                self.board[i][j] = idx
+                                break
 
     def strategy_name_at(self, row: int, col: int):
         if row >= self.rows or col >= self.cols:

@@ -26,7 +26,8 @@ pygbag main.py
 - **R**: Restart with same seed
 - **N**: Restart with new seed
 - **S**: Toggle stats view (or click Stats/Grid button)
-- **ESC**: Quit (or return to grid from stats view)
+- **M**: Toggle mix view (or click Mix/Grid button)
+- **ESC**: Quit (or return to grid from other views)
 - **Double-click parameter values**: Edit directly
 
 ## Architecture
@@ -43,12 +44,13 @@ The codebase is organized into modular components:
 
 - **`grid.py`** - 2D grid cellular automaton with wrapping edges
   - `Grid.update_grid()` is the core evolution step
+  - `Grid.populate_randomly(weights)` initializes grid with optional weighted distribution
   - Cells copy the strategy of their highest-scoring neighbor (ties favor current strategy)
 
 - **`main.py`** - Application entry point and game state
-  - `SimulationState` class manages simulation parameters, board state, and census history
-  - `main()` async function contains event loop with screen switching (simulator/stats)
-  - Delegates rendering to UI modules (`SimulatorUI`, `StatsUI`)
+  - `SimulationState` class manages simulation parameters, board state, census history, and strategy weights
+  - `main()` async function contains event loop with screen switching (simulator/stats/mix)
+  - Delegates rendering to UI modules (`SimulatorUI`, `StatsUI`, `MixUI`)
 
 ### UI Package (`ui/`)
 
@@ -61,6 +63,7 @@ Modular UI components for visualization and interaction:
 - **`ui/components.py`** - Reusable UI widgets
   - `Button` - Clickable button with hover states
   - `ParameterControl` - Parameter adjustment with +/- buttons and text input
+  - `StrategyWeightControl` - Slider control for adjusting strategy weights
 
 - **`ui/simulator_ui.py`** - Main simulation screen
   - `SimulatorUI` class handles all rendering and UI interaction
@@ -71,6 +74,12 @@ Modular UI components for visualization and interaction:
   - Census bars showing current percentage of each strategy
   - Time series chart tracking strategy proportions over generations
   - Layout adapts dynamically to number of strategies
+
+- **`ui/mix_ui.py`** - Strategy mix configuration view
+  - `MixUI` class for configuring initial strategy distribution
+  - Slider controls for each strategy's weight (0-10 range)
+  - Weights determine relative probability; percentages shown for clarity
+  - "Reset to Equal" button restores uniform distribution
 
 - **`ui/__init__.py`** - Clean import interface
 
@@ -101,15 +110,27 @@ To modify appearance:
 
 ## Multiple Views
 
-The application supports two views, toggled with S key or Stats/Grid button:
+The application supports three views:
 - **Simulator view** - Main grid visualization with controls and parameters
-- **Stats view** - Population statistics with census bars and time series chart
+- **Stats view** (S key or Stats button) - Population statistics with census bars and time series chart
+- **Mix view** (M key or Mix button) - Configure initial strategy distribution before starting
 
 Census data is tracked in `SimulationState.census_history` (list of `{strategy_name: percentage}` dicts), recorded each generation via `record_census()`.
+
+## Strategy Mix
+
+The mix view allows configuring the initial distribution of strategies:
+- Each strategy has a weight slider (0-10 range)
+- Weights determine relative probability (e.g., weight 3 vs 1 means 3x more likely)
+- Set weight to 0 to exclude a strategy entirely
+- Press R or N after configuring to apply the new mix
+
+Weights are stored in `SimulationState.strategy_weights` (dict of `{strategy_name: weight}`) and passed to `Grid.populate_randomly()` on simulation start.
 
 ## Future Extensions
 
 The architecture supports additional screens/views:
 - UI components are reusable across different screens
 - Theme system allows easy visual customization
-- New views can follow the `StatsUI` pattern (class with `draw()` method)
+- New views can follow the `StatsUI`/`MixUI` pattern (class with `draw()` method)
+- Strategy weights automatically adapt when new strategies are added

@@ -10,7 +10,7 @@ import sys
 import random
 from strategies import always_defect, always_cooperate, tit_for_tat, pavlov, revenger, prisoners_dilemma, tf2t
 from grid import Grid
-from ui import DEFAULT_THEME, SimulatorUI, StatsUI
+from ui import DEFAULT_THEME, SimulatorUI, StatsUI, MixUI
 from ui.components import Button
 
 
@@ -35,6 +35,10 @@ class SimulationState:
             "Revenger": (155, 89, 182),             # Amethyst purple
             "Tit-for-two-tats": (26, 188, 156)      # Turquoise
         }
+
+        # Strategy weights for initial population (default: equal weights)
+        # Keys are strategy names, values are weights (not percentages)
+        self.strategy_weights = {str(s): 1.0 for s in self.strategies}
 
         # Simulation parameters
         self.reset_parameters()
@@ -75,7 +79,10 @@ class SimulationState:
             noise=self.noise,
             mutation_rate=self.mutation_rate
         )
-        self.board.populate_randomly()
+
+        # Build weights list in same order as strategies
+        weights = [self.strategy_weights.get(str(s), 1.0) for s in self.strategies]
+        self.board.populate_randomly(weights)
         self.step_count = 0
 
         # Reset and record initial census
@@ -102,10 +109,24 @@ class SimulationState:
         """Get current census percentages"""
         return self.board.get_census_percentages()
 
+    def get_weight_percentages(self):
+        """Get strategy weights as percentages (for display)"""
+        total = sum(self.strategy_weights.values())
+        if total == 0:
+            # Avoid division by zero
+            n = len(self.strategy_weights)
+            return {name: 100.0 / n for name in self.strategy_weights}
+        return {name: (w / total) * 100 for name, w in self.strategy_weights.items()}
+
+    def reset_weights_to_equal(self):
+        """Reset all strategy weights to equal"""
+        self.strategy_weights = {str(s): 1.0 for s in self.strategies}
+
 
 # Screen modes
 SCREEN_SIMULATOR = 0
 SCREEN_STATS = 1
+SCREEN_MIX = 2
 
 
 async def main():
@@ -113,20 +134,27 @@ async def main():
     sim = SimulationState()
     sim_ui = SimulatorUI(sim, DEFAULT_THEME)
     stats_ui = StatsUI(sim, DEFAULT_THEME)
+    mix_ui = MixUI(sim, DEFAULT_THEME)
 
     # Current screen
     current_screen = SCREEN_SIMULATOR
 
-    # Create screen toggle button (in bottom panel)
+    # Create screen toggle buttons (in bottom panel)
     btn_stats = Button(
         sim_ui.window_width - 200, sim_ui.window_height - sim_ui.bottom_panel_height + 60,
         90, 28, "Stats", (80, 100, 120), (100, 130, 160)
     )
+    btn_mix = Button(
+        sim_ui.window_width - 305, sim_ui.window_height - sim_ui.bottom_panel_height + 60,
+        90, 28, "Mix", (100, 80, 120), (130, 100, 160)
+    )
 
-    def update_stats_button_position():
-        """Update stats button position after window/grid changes"""
+    def update_button_positions():
+        """Update button positions after window/grid changes"""
         btn_stats.rect.x = sim_ui.window_width - 200
         btn_stats.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
+        btn_mix.rect.x = sim_ui.window_width - 305
+        btn_mix.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
 
     running = True
     pending_restart = False  # Track if we need to restart after param changes
@@ -145,20 +173,31 @@ async def main():
                     (sim_ui.window_width, sim_ui.window_height),
                     pygame.RESIZABLE
                 )
-                update_stats_button_position()
+                update_button_positions()
 
             elif event.type == pygame.KEYDOWN:
                 # S key toggles stats view
                 if event.key == pygame.K_s:
-                    current_screen = SCREEN_STATS if current_screen == SCREEN_SIMULATOR else SCREEN_SIMULATOR
+                    # If on stats, go to simulator; otherwise go to stats
+                    current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_STATS else SCREEN_STATS
                     btn_stats.text = "Grid" if current_screen == SCREEN_STATS else "Stats"
+                    btn_mix.text = "Mix"
                     continue
 
-                # ESC returns to simulator from stats, or quits from simulator
+                # M key toggles mix view
+                if event.key == pygame.K_m:
+                    # If on mix, go to simulator; otherwise go to mix
+                    current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_MIX else SCREEN_MIX
+                    btn_mix.text = "Grid" if current_screen == SCREEN_MIX else "Mix"
+                    btn_stats.text = "Stats"
+                    continue
+
+                # ESC returns to simulator from other screens, or quits from simulator
                 if event.key == pygame.K_ESCAPE:
-                    if current_screen == SCREEN_STATS:
+                    if current_screen in (SCREEN_STATS, SCREEN_MIX):
                         current_screen = SCREEN_SIMULATOR
                         btn_stats.text = "Stats"
+                        btn_mix.text = "Mix"
                     else:
                         running = False
                     continue
@@ -171,12 +210,12 @@ async def main():
                 elif event.key == pygame.K_r:
                     sim.new_simulation(new_seed=False)
                     sim_ui.resize_window_to_fit_grid()
-                    update_stats_button_position()
+                    update_button_positions()
                     pending_restart = False
                 elif event.key == pygame.K_n:
                     sim.new_simulation(new_seed=True)
                     sim_ui.resize_window_to_fit_grid()
-                    update_stats_button_position()
+                    update_button_positions()
                     pending_restart = False
 
                 # Parameter editing only in simulator view
@@ -185,12 +224,36 @@ async def main():
                     if done and needs_restart:
                         pending_restart = True
 
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:  # Left click release
+                    if current_screen == SCREEN_MIX:
+                        mix_ui.handle_mouse_up()
+
+            elif event.type == pygame.MOUSEMOTION:
+                if current_screen == SCREEN_MIX:
+                    mix_ui.handle_mouse_motion(mouse_pos)
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
-                    # Check stats toggle button (works in both views)
+                    # Check stats toggle button (works in all views)
                     if btn_stats.is_clicked(mouse_pos, True):
-                        current_screen = SCREEN_STATS if current_screen == SCREEN_SIMULATOR else SCREEN_SIMULATOR
+                        # If on stats, go to simulator; otherwise go to stats
+                        current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_STATS else SCREEN_STATS
                         btn_stats.text = "Grid" if current_screen == SCREEN_STATS else "Stats"
+                        btn_mix.text = "Mix"
+                        continue
+
+                    # Check mix toggle button (works in all views)
+                    if btn_mix.is_clicked(mouse_pos, True):
+                        # If on mix, go to simulator; otherwise go to mix
+                        current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_MIX else SCREEN_MIX
+                        btn_mix.text = "Grid" if current_screen == SCREEN_MIX else "Mix"
+                        btn_stats.text = "Stats"
+                        continue
+
+                    # Mix screen mouse handling
+                    if current_screen == SCREEN_MIX:
+                        mix_ui.handle_mouse_down(mouse_pos)
                         continue
 
                     # Simulator-specific button handling
@@ -216,12 +279,12 @@ async def main():
                         elif sim_ui.btn_restart_same.is_clicked(mouse_pos, True):
                             sim.new_simulation(new_seed=False)
                             sim_ui.resize_window_to_fit_grid()
-                            update_stats_button_position()
+                            update_button_positions()
                             pending_restart = False
                         elif sim_ui.btn_new_seed.is_clicked(mouse_pos, True):
                             sim.new_simulation(new_seed=True)
                             sim_ui.resize_window_to_fit_grid()
-                            update_stats_button_position()
+                            update_button_positions()
                             pending_restart = False
                         elif sim_ui.btn_reset.is_clicked(mouse_pos, True):
                             sim_ui.reset_params_to_defaults()
@@ -234,8 +297,11 @@ async def main():
 
         # Update hover states
         btn_stats.update(mouse_pos)
+        btn_mix.update(mouse_pos)
         if current_screen == SCREEN_SIMULATOR:
             sim_ui.update_controls(mouse_pos)
+        elif current_screen == SCREEN_MIX:
+            mix_ui.update(mouse_pos)
 
         # Auto-step when not paused
         if not sim.paused and current_time - sim.last_auto_step >= sim.auto_step_delay:
@@ -254,7 +320,7 @@ async def main():
                 )
                 sim_ui.window.blit(indicator_text, (sim_ui.padding, sim_ui.window_height - sim_ui.bottom_panel_height + 40))
 
-        else:  # Stats screen
+        elif current_screen == SCREEN_STATS:
             # Draw stats on same window
             sim_ui.window.fill(DEFAULT_THEME.BG_COLOR)
             stats_ui.draw(sim_ui.window, sim_ui.window_width, sim_ui.window_height, sim_ui.bottom_panel_height)
@@ -281,8 +347,37 @@ async def main():
             )
             sim_ui.window.blit(controls_text, (sim_ui.padding, panel_y + 95))
 
-        # Draw stats toggle button (in both views)
+        elif current_screen == SCREEN_MIX:
+            # Draw mix configuration screen
+            sim_ui.window.fill(DEFAULT_THEME.BG_COLOR)
+            mix_ui.draw(sim_ui.window, sim_ui.window_width, sim_ui.window_height, sim_ui.bottom_panel_height)
+
+            # Draw bottom panel for mix view
+            panel_y = sim_ui.window_height - sim_ui.bottom_panel_height
+            pygame.draw.rect(sim_ui.window, DEFAULT_THEME.PANEL_COLOR, (0, panel_y, sim_ui.window_width, sim_ui.bottom_panel_height))
+            pygame.draw.line(sim_ui.window, (60, 60, 65), (0, panel_y), (sim_ui.window_width, panel_y), 2)
+
+            # Title
+            title_text = DEFAULT_THEME.font_title.render("Configure Starting Mix", True, DEFAULT_THEME.TEXT_COLOR)
+            sim_ui.window.blit(title_text, (sim_ui.padding, panel_y + 15))
+
+            # Hint about applying
+            hint_text = DEFAULT_THEME.font_medium.render(
+                "Press R or N to start simulation with this mix",
+                True, (180, 180, 60)
+            )
+            sim_ui.window.blit(hint_text, (sim_ui.padding, panel_y + 50))
+
+            # Controls help for mix view
+            controls_text = DEFAULT_THEME.font_small.render(
+                "M: Toggle View | R: Restart (same seed) | N: New Seed | ESC: Back",
+                True, DEFAULT_THEME.TEXT_DIM_COLOR
+            )
+            sim_ui.window.blit(controls_text, (sim_ui.padding, panel_y + 95))
+
+        # Draw screen toggle buttons (in all views)
         btn_stats.draw(sim_ui.window, DEFAULT_THEME.font_medium)
+        btn_mix.draw(sim_ui.window, DEFAULT_THEME.font_medium)
 
         pygame.display.flip()
         await asyncio.sleep(0)

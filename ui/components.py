@@ -193,3 +193,137 @@ class ParameterControl:
             self.start_editing()
             return True
         return False
+
+
+class StrategyWeightControl:
+    """Control for adjusting a strategy's weight in the initial mix"""
+
+    def __init__(self, x, y, width, height, strategy_name, color, weight=1.0):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.strategy_name = strategy_name
+        self.color = color
+        self.weight = weight
+
+        self.min_weight = 0.0
+        self.max_weight = 10.0
+
+        # Slider track dimensions
+        self.track_height = 8
+        self.handle_width = 14
+        self.handle_height = 20
+
+        # Layout
+        self.color_square_size = 16
+        self.name_x = x + self.color_square_size + 10
+        self.slider_x = x + 140
+        self.slider_width = width - 200
+        self.value_x = x + width - 50
+
+        self._update_rects()
+
+        self.dragging = False
+        self.is_hovered = False
+
+    def _update_rects(self):
+        """Update clickable rectangles based on current position"""
+        # Slider track
+        track_y = self.y + (self.height - self.track_height) // 2
+        self.track_rect = pygame.Rect(self.slider_x, track_y, self.slider_width, self.track_height)
+
+        # Handle position based on weight
+        handle_progress = self.weight / self.max_weight
+        handle_x = self.slider_x + int(handle_progress * (self.slider_width - self.handle_width))
+        handle_y = self.y + (self.height - self.handle_height) // 2
+        self.handle_rect = pygame.Rect(handle_x, handle_y, self.handle_width, self.handle_height)
+
+        # Full row rect for hover detection
+        self.row_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+    def update_position(self, x, y):
+        """Update control position"""
+        self.x = x
+        self.y = y
+        self.name_x = x + self.color_square_size + 10
+        self.slider_x = x + 140
+        self.value_x = x + self.width - 50
+        self._update_rects()
+
+    def update(self, mouse_pos):
+        """Update hover state"""
+        self.is_hovered = self.row_rect.collidepoint(mouse_pos)
+
+        if self.dragging:
+            # Update weight based on mouse position
+            rel_x = mouse_pos[0] - self.slider_x
+            progress = max(0, min(1, rel_x / (self.slider_width - self.handle_width)))
+            self.weight = round(progress * self.max_weight, 1)
+            self._update_rects()
+
+    def handle_mouse_down(self, mouse_pos):
+        """Handle mouse down. Returns True if this control captured the event."""
+        if self.handle_rect.collidepoint(mouse_pos) or self.track_rect.collidepoint(mouse_pos):
+            self.dragging = True
+            # Jump to click position
+            rel_x = mouse_pos[0] - self.slider_x
+            progress = max(0, min(1, rel_x / (self.slider_width - self.handle_width)))
+            self.weight = round(progress * self.max_weight, 1)
+            self._update_rects()
+            return True
+        return False
+
+    def handle_mouse_up(self):
+        """Handle mouse up"""
+        self.dragging = False
+
+    def draw(self, surface, font_name, font_value, percentage=None):
+        """Draw the weight control
+
+        Args:
+            surface: Pygame surface to draw on
+            font_name: Font for strategy name
+            font_value: Font for value display
+            percentage: Optional percentage to display (calculated externally)
+        """
+        # Background on hover
+        if self.is_hovered:
+            pygame.draw.rect(surface, (55, 55, 60), self.row_rect, border_radius=4)
+
+        # Color square
+        pygame.draw.rect(
+            surface, self.color,
+            (self.x, self.y + (self.height - self.color_square_size) // 2,
+             self.color_square_size, self.color_square_size),
+            border_radius=3
+        )
+
+        # Strategy name
+        name_text = font_name.render(self.strategy_name, True, (200, 200, 200))
+        surface.blit(name_text, (self.name_x, self.y + (self.height - name_text.get_height()) // 2))
+
+        # Slider track background
+        pygame.draw.rect(surface, (50, 50, 55), self.track_rect, border_radius=4)
+
+        # Slider filled portion
+        fill_width = int((self.weight / self.max_weight) * self.slider_width)
+        if fill_width > 0:
+            fill_rect = pygame.Rect(self.slider_x, self.track_rect.y, fill_width, self.track_height)
+            # Use strategy color with reduced opacity effect
+            fill_color = tuple(min(255, int(c * 0.7 + 50)) for c in self.color)
+            pygame.draw.rect(surface, fill_color, fill_rect, border_radius=4)
+
+        # Slider handle
+        handle_color = (100, 100, 110) if not self.dragging else (120, 120, 130)
+        pygame.draw.rect(surface, handle_color, self.handle_rect, border_radius=3)
+        pygame.draw.rect(surface, (70, 70, 75), self.handle_rect, 1, border_radius=3)
+
+        # Weight value and percentage
+        if percentage is not None:
+            value_str = f"{percentage:.0f}%"
+        else:
+            value_str = f"{self.weight:.1f}"
+
+        value_text = font_value.render(value_str, True, (180, 180, 180))
+        surface.blit(value_text, (self.value_x, self.y + (self.height - value_text.get_height()) // 2))
