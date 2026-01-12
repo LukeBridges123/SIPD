@@ -62,7 +62,6 @@ def play_iterated_game(player1: Strategy, player2: Strategy, game: Game, rounds:
 
 def build_strategy_function_from_lookup(lookup: Dict[tuple[tuple[int], tuple[int]], int],
                                         memory_length: int, default_move: int = 0):
-    print(lookup.keys())
     for my_moves, opponents_moves in lookup.keys():
         if len(my_moves) != memory_length or len(opponents_moves) != memory_length:
             raise ValueError("Invalid strategy: given history is not the right length")
@@ -134,10 +133,3 @@ def tit_for_two_tats_strategy(my_history: list[int], opponent_history: list[int]
     return 1
 
 tf2t = Strategy(tit_for_two_tats_strategy, "Tit-for-two-tats", "2")
-
-tft_lookup = {((0,), (0,)): 0,
-              ((0,), (1,)): 1,
-              ((1,), (0,)): 0,
-              ((1,), (1,)): 1}
-new_tft_strategy = build_strategy_function_from_lookup(tft_lookup, 1, 1)
-new_tft = Strategy(new_tft_strategy, "New tit-for-tat", "A")
