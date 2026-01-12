@@ -12,6 +12,13 @@ from .components import Button, ParameterControl
 class SimulatorUI:
     """UI for the main simulation screen"""
 
+    # Layout constants
+    SIDEBAR_TITLE_HEIGHT = 40  # Height for "Strategies" title
+    LEGEND_ITEM_SPACING = 26  # Vertical spacing between legend items
+    LEGEND_SQUARE_SIZE = 14  # Size of color squares in legend
+    PARAM_CONTROL_SPACING = 24  # Vertical spacing between parameter controls
+    SECTION_DIVIDER_SPACING = 20  # Space around section dividers
+
     def __init__(self, sim_state, theme):
         """Initialize the simulator UI
 
@@ -31,6 +38,52 @@ class SimulatorUI:
         self.bottom_panel_height = theme.BOTTOM_PANEL_HEIGHT
         self.padding = theme.PADDING
 
+        # Initialize window and UI elements
+        self._init_window()
+
+    def _get_num_strategies(self):
+        """Get the number of strategies in the simulation"""
+        return len(self.sim.colors)
+
+    def _calculate_sidebar_width(self):
+        """Calculate minimum sidebar width based on content.
+
+        Returns the width needed to fit strategy names and controls.
+        """
+        # Get max strategy name width
+        strategy_names = list(self.sim.colors.keys())
+        max_name_width = self.theme.get_max_text_width(strategy_names, self.theme.font_small)
+
+        # Account for color square + spacing + name + padding
+        legend_needed = self.LEGEND_SQUARE_SIZE + 22 + max_name_width + 30
+
+        # Parameter controls need space for label + value + buttons
+        param_labels = ["Rows:", "Cols:", "Rounds:", "Noise:", "Mutation:", "Speed:"]
+        max_label_width = self.theme.get_max_text_width(param_labels, self.theme.font_small)
+        param_needed = max_label_width + 100  # value + buttons
+
+        return max(legend_needed, param_needed, self.theme.SIDEBAR_WIDTH)
+
+    def _calculate_min_sidebar_height(self):
+        """Calculate minimum height needed for sidebar content.
+
+        Returns the height needed to fit all strategies and parameters.
+        """
+        num_strategies = self._get_num_strategies()
+        num_params = len(self.param_controls) if hasattr(self, 'param_controls') else 6
+
+        height = self.SIDEBAR_TITLE_HEIGHT + 5  # Title + padding
+        height += num_strategies * self.LEGEND_ITEM_SPACING  # Strategy legend
+        height += self.SECTION_DIVIDER_SPACING  # Divider area
+        height += 25  # "Parameters" title
+        height += 22  # Seed display
+        height += num_params * self.PARAM_CONTROL_SPACING  # Parameter controls
+        height += 30  # Note + padding
+
+        return height
+
+    def _init_window(self):
+        """Initialize window and UI elements (called from __init__)"""
         # Calculate initial window size
         self.update_window_size()
 
@@ -46,16 +99,20 @@ class SimulatorUI:
         self.create_parameter_controls()
 
     def update_window_size(self):
-        """Calculate window dimensions based on grid size"""
+        """Calculate window dimensions based on grid size and content requirements"""
         grid_width = self.sim.grid_cols * self.cell_size
         grid_height = self.sim.grid_rows * self.cell_size
 
         self.window_width = grid_width + self.sidebar_width + self.padding * 3
         self.window_height = grid_height + self.bottom_panel_height + self.padding * 2
 
-        # Minimum size
+        # Calculate minimum sizes based on content
+        min_sidebar_height = self._calculate_min_sidebar_height()
+        min_height = min_sidebar_height + self.bottom_panel_height + self.padding * 2
+
+        # Apply minimum sizes
         self.window_width = max(self.window_width, 650)
-        self.window_height = max(self.window_height, 550)
+        self.window_height = max(self.window_height, min_height, 400)  # At least 400 for usability
 
     def create_buttons(self):
         """Create UI buttons"""
@@ -147,8 +204,12 @@ class SimulatorUI:
 
     def handle_resize(self, new_width, new_height):
         """Handle window resize event"""
+        # Calculate dynamic minimum height based on sidebar content
+        min_sidebar_height = self._calculate_min_sidebar_height()
+        min_height = max(min_sidebar_height + self.bottom_panel_height + self.padding * 2, 400)
+
         self.window_width = max(new_width, 650)
-        self.window_height = max(new_height, 550)
+        self.window_height = max(new_height, min_height)
 
         # Recalculate cell size to fit grid in available space
         # Use actual board dimensions, not parameter values
@@ -257,7 +318,10 @@ class SimulatorUI:
                 )
 
     def _draw_sidebar(self):
-        """Draw the right sidebar with legend and parameters"""
+        """Draw the right sidebar with legend and parameters.
+
+        Layout adapts to the number of strategies and available space.
+        """
         sidebar_x = self.window_width - self.sidebar_width - self.padding
         sidebar_y = self.padding
         sidebar_height = self.window_height - self.bottom_panel_height - self.padding
@@ -273,54 +337,52 @@ class SimulatorUI:
         title = self.theme.font_title.render("Strategies", True, self.theme.TEXT_COLOR)
         self.window.blit(title, (sidebar_x + 15, sidebar_y + 12))
 
-        # Strategy legend
-        legend_y = sidebar_y + 45
-        legend_item_height = 26
-        square_size = 14
+        # Strategy legend - position adapts to title height
+        current_y = sidebar_y + self.SIDEBAR_TITLE_HEIGHT + 5
+        num_strategies = self._get_num_strategies()
 
         for strategy_name, color in self.sim.colors.items():
             # Color square
             pygame.draw.rect(
                 self.window, color,
-                (sidebar_x + 15, legend_y, square_size, square_size),
+                (sidebar_x + 15, current_y, self.LEGEND_SQUARE_SIZE, self.LEGEND_SQUARE_SIZE),
                 border_radius=3
             )
 
             # Strategy name
             text = self.theme.font_small.render(strategy_name, True, self.theme.TEXT_COLOR)
-            self.window.blit(text, (sidebar_x + 36, legend_y + 1))
+            self.window.blit(text, (sidebar_x + 36, current_y + 1))
 
-            legend_y += legend_item_height
+            current_y += self.LEGEND_ITEM_SPACING
 
-        # Divider
-        legend_y += 8
+        # Divider - position adapts to number of strategies
+        current_y += 8
         pygame.draw.line(
             self.window, (80, 80, 85),
-            (sidebar_x + 15, legend_y), (sidebar_x + self.sidebar_width - 15, legend_y)
+            (sidebar_x + 15, current_y), (sidebar_x + self.sidebar_width - 15, current_y)
         )
 
         # Parameters section title
-        legend_y += 12
+        current_y += 12
         params_title = self.theme.font_medium.render("Parameters", True, self.theme.TEXT_COLOR)
-        self.window.blit(params_title, (sidebar_x + 15, legend_y))
-        legend_y += 25
+        self.window.blit(params_title, (sidebar_x + 15, current_y))
+        current_y += 25
 
         # Seed display (not editable)
         seed_text = self.theme.font_small.render(f"Seed: {self.sim.seed % 100000:05d}", True, self.theme.TEXT_DIM_COLOR)
-        self.window.blit(seed_text, (sidebar_x + 15, legend_y))
-        legend_y += 22
+        self.window.blit(seed_text, (sidebar_x + 15, current_y))
+        current_y += 22
 
         # Update parameter control positions and draw them
-        control_spacing = 24
         for ctrl in self.param_controls:
-            ctrl.update_positions(sidebar_x + 15, legend_y)
+            ctrl.update_positions(sidebar_x + 15, current_y)
             ctrl.draw(self.window, self.theme.font_small, self.theme.font_tiny)
-            legend_y += control_spacing
+            current_y += self.PARAM_CONTROL_SPACING
 
         # Note about restart
-        legend_y += 8
+        current_y += 8
         note = self.theme.font_tiny.render("* requires restart", True, (140, 120, 80))
-        self.window.blit(note, (sidebar_x + 15, legend_y))
+        self.window.blit(note, (sidebar_x + 15, current_y))
 
     def _draw_bottom_panel(self):
         """Draw the bottom control panel"""

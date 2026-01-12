@@ -12,6 +12,19 @@ from .components import Button
 class StatsUI:
     """UI for the statistics/census view"""
 
+    # Layout constants for census bars
+    BAR_HEIGHT = 22
+    BAR_SPACING = 4
+    BAR_MAX_WIDTH = 300
+    SECTION_TITLE_HEIGHT = 30  # Height for "Current Census" title
+    PANEL_PADDING = 10  # Padding inside panels
+
+    # Layout constants for time series
+    CHART_MARGIN = 50  # Margin around chart for axes
+    LEGEND_ITEM_HEIGHT = 18
+    MIN_CHART_HEIGHT = 50
+    MAX_CHART_HEIGHT = 250
+
     def __init__(self, sim_state, theme):
         """Initialize the stats UI
 
@@ -24,7 +37,28 @@ class StatsUI:
 
         # Layout parameters
         self.padding = theme.PADDING
-        self.chart_margin = 50  # Margin around chart for axes
+
+    def _get_num_strategies(self):
+        """Get the number of strategies in the simulation"""
+        return len(self.sim.colors)
+
+    def _get_label_width(self):
+        """Calculate label width based on longest strategy name"""
+        strategy_names = list(self.sim.colors.keys())
+        max_width = self.theme.get_max_text_width(strategy_names, self.theme.font_small)
+        return max_width + 10  # Add some padding
+
+    def _get_legend_width(self):
+        """Calculate legend width based on longest strategy name (using tiny font)"""
+        strategy_names = list(self.sim.colors.keys())
+        max_width = self.theme.get_max_text_width(strategy_names, self.theme.font_tiny)
+        return max_width + 24  # Add space for color square and padding
+
+    def _get_census_section_height(self):
+        """Calculate the total height needed for the census bars section"""
+        num_strategies = self._get_num_strategies()
+        bars_height = num_strategies * (self.BAR_HEIGHT + self.BAR_SPACING) - self.BAR_SPACING
+        return self.SECTION_TITLE_HEIGHT + bars_height + self.PANEL_PADDING * 2
 
     def draw(self, window, window_width, window_height, bottom_panel_height):
         """Draw the statistics view
@@ -42,28 +76,36 @@ class StatsUI:
         title = self.theme.font_title.render("Population Statistics", True, self.theme.TEXT_COLOR)
         window.blit(title, (self.padding, self.padding))
 
-        # Draw current census bars
-        self._draw_census_bars(window, window_width, available_height)
+        # Draw current census bars and get the bottom position
+        census_bottom = self._draw_census_bars(window, window_width, available_height)
 
-        # Draw time series chart
-        self._draw_time_series(window, window_width, available_height)
+        # Draw time series chart below census section
+        self._draw_time_series(window, window_width, available_height, census_bottom)
 
     def _draw_census_bars(self, window, window_width, available_height):
-        """Draw horizontal bars showing current population percentages"""
+        """Draw horizontal bars showing current population percentages.
+
+        Returns:
+            The bottom y-coordinate of the census section (for positioning subsequent elements)
+        """
         census = self.sim.get_current_census()
 
+        # Calculate dynamic dimensions
+        label_width = self._get_label_width()
+        bar_max_width = min(self.BAR_MAX_WIDTH, window_width // 3)
+        census_height = self._get_census_section_height()
+
         bar_area_top = 50
-        bar_area_height = 200  # Increased to fit all 6 strategies
-        bar_height = 22
-        bar_spacing = 4
-        bar_max_width = min(300, window_width // 3)
-        label_width = 145  # Width for strategy name labels
         bar_x = self.padding + label_width  # Leave room for labels
 
-        # Background panel
+        # Percentage label width (e.g., "100.0%")
+        pct_label_width = self.theme.get_text_width("100.0%", self.theme.font_small) + 8
+
+        # Background panel - sized to fit content
         panel_rect = pygame.Rect(
-            self.padding - 5, bar_area_top - 10,
-            bar_max_width + label_width + 70, bar_area_height + 20
+            self.padding - 5, bar_area_top - self.PANEL_PADDING,
+            bar_max_width + label_width + pct_label_width + self.PANEL_PADDING * 2,
+            census_height + self.PANEL_PADDING
         )
         pygame.draw.rect(window, self.theme.PANEL_COLOR, panel_rect, border_radius=8)
 
@@ -71,34 +113,51 @@ class StatsUI:
         section_title = self.theme.font_medium.render("Current Census", True, self.theme.TEXT_COLOR)
         window.blit(section_title, (self.padding, bar_area_top))
 
-        y = bar_area_top + 30
+        y = bar_area_top + self.SECTION_TITLE_HEIGHT
 
         for strategy_name, percentage in census.items():
             color = self.sim.colors.get(strategy_name, (150, 150, 150))
 
-            # Strategy label (full name, will fit in label_width)
+            # Strategy label (full name)
             label = self.theme.font_small.render(strategy_name, True, self.theme.TEXT_COLOR)
             window.blit(label, (self.padding, y + 2))
 
             # Bar background
-            bar_bg_rect = pygame.Rect(bar_x, y, bar_max_width, bar_height)
+            bar_bg_rect = pygame.Rect(bar_x, y, bar_max_width, self.BAR_HEIGHT)
             pygame.draw.rect(window, (60, 60, 65), bar_bg_rect, border_radius=3)
 
             # Bar fill
             bar_width = int((percentage / 100) * bar_max_width)
             if bar_width > 0:
-                bar_rect = pygame.Rect(bar_x, y, bar_width, bar_height)
+                bar_rect = pygame.Rect(bar_x, y, bar_width, self.BAR_HEIGHT)
                 pygame.draw.rect(window, color, bar_rect, border_radius=3)
 
             # Percentage label
             pct_text = self.theme.font_small.render(f"{percentage:.1f}%", True, self.theme.TEXT_COLOR)
             window.blit(pct_text, (bar_x + bar_max_width + 8, y + 2))
 
-            y += bar_height + bar_spacing
+            y += self.BAR_HEIGHT + self.BAR_SPACING
 
-    def _draw_time_series(self, window, window_width, available_height):
-        """Draw time series chart of population history"""
+        # Return bottom of census section for positioning time series
+        return bar_area_top + census_height + self.PANEL_PADDING * 2
+
+    def _draw_time_series(self, window, window_width, available_height, census_bottom):
+        """Draw time series chart of population history
+
+        Args:
+            window: pygame surface to draw on
+            window_width: current window width
+            available_height: available height for content
+            census_bottom: y-coordinate of the bottom of the census section
+        """
         history = self.sim.census_history
+
+        # Calculate dynamic dimensions
+        legend_width = self._get_legend_width()
+        num_strategies = self._get_num_strategies()
+
+        # Chart positioning - below census section with some spacing
+        chart_top = census_bottom + 20  # 20px gap after census section
 
         if len(history) < 2:
             # Not enough data to draw
@@ -106,23 +165,25 @@ class StatsUI:
                 "Run simulation to see time series...",
                 True, self.theme.TEXT_DIM_COLOR
             )
-            window.blit(no_data, (self.padding, 290))
+            window.blit(no_data, (self.padding, chart_top))
             return
 
-        # Chart area
-        chart_left = self.padding + self.chart_margin
-        chart_top = 280  # Moved down to account for taller census section
-        legend_width = 130  # Space for legend on the right
-        chart_width = window_width - 2 * self.padding - self.chart_margin - legend_width - 20
-        chart_height = min(250, available_height - chart_top - 50)
+        # Chart area dimensions
+        chart_left = self.padding + self.CHART_MARGIN
+        chart_width = window_width - 2 * self.padding - self.CHART_MARGIN - legend_width - 20
+        chart_height = min(self.MAX_CHART_HEIGHT, available_height - chart_top - 50)
 
-        if chart_width < 100 or chart_height < 50:
+        if chart_width < 100 or chart_height < self.MIN_CHART_HEIGHT:
             return  # Not enough space
 
-        # Background panel
+        # Calculate legend height based on number of strategies
+        legend_height = num_strategies * self.LEGEND_ITEM_HEIGHT
+
+        # Background panel - sized to fit content
+        panel_height = max(chart_height + 70, legend_height + 60)
         panel_rect = pygame.Rect(
             self.padding - 5, chart_top - 30,
-            chart_width + self.chart_margin + legend_width + 30, chart_height + 70
+            chart_width + self.CHART_MARGIN + legend_width + 30, panel_height
         )
         pygame.draw.rect(window, self.theme.PANEL_COLOR, panel_rect, border_radius=8)
 
@@ -175,7 +236,7 @@ class StatsUI:
 
         for i, (strategy_name, color) in enumerate(self.sim.colors.items()):
             # Small color square
-            pygame.draw.rect(window, color, (legend_x, legend_y + i * 18, 10, 10), border_radius=2)
+            pygame.draw.rect(window, color, (legend_x, legend_y + i * self.LEGEND_ITEM_HEIGHT, 10, 10), border_radius=2)
             # Full strategy name
             label = self.theme.font_tiny.render(strategy_name, True, self.theme.TEXT_DIM_COLOR)
-            window.blit(label, (legend_x + 14, legend_y + i * 18 - 2))
+            window.blit(label, (legend_x + 14, legend_y + i * self.LEGEND_ITEM_HEIGHT - 2))
