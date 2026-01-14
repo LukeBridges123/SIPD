@@ -27,6 +27,7 @@ pygbag main.py
 - **N**: Restart with new seed
 - **S**: Toggle stats view (or click Stats/Grid button)
 - **M**: Toggle mix view (or click Mix/Grid button)
+- **U**: Toggle matchup view (or click Matchup/Grid button)
 - **ESC**: Quit (or return to grid from other views)
 - **Double-click parameter values**: Edit directly
 
@@ -49,8 +50,8 @@ The codebase is organized into modular components:
 
 - **`main.py`** - Application entry point and game state
   - `SimulationState` class manages simulation parameters, board state, census history, and strategy weights
-  - `main()` async function contains event loop with screen switching (simulator/stats/mix)
-  - Delegates rendering to UI modules (`SimulatorUI`, `StatsUI`, `MixUI`)
+  - `main()` async function contains event loop with screen switching (simulator/stats/mix/matchup)
+  - Delegates rendering to UI modules (`SimulatorUI`, `StatsUI`, `MixUI`, `MatchupUI`)
 
 ### UI Package (`ui/`)
 
@@ -80,6 +81,12 @@ Modular UI components for visualization and interaction:
   - Slider controls for each strategy's weight (0-10 range)
   - Weights determine relative probability; percentages shown for clarity
   - "Reset to Equal" button restores uniform distribution
+
+- **`ui/matchup_ui.py`** - Strategy matchup table view
+  - `MatchupUI` class displays how each strategy performs against every other
+  - Color-coded grid: green (high score) to red (low score)
+  - Hover over cells to see exact scores
+  - Helps visualize which strategies dominate others
 
 - **`ui/__init__.py`** - Clean import interface
 
@@ -111,10 +118,11 @@ To modify appearance:
 
 ## Multiple Views
 
-The application supports three views:
+The application supports four views:
 - **Simulator view** - Main grid visualization with controls and parameters
 - **Stats view** (S key or Stats button) - Population statistics with census bars and time series chart
 - **Mix view** (M key or Mix button) - Configure initial strategy distribution before starting
+- **Matchup view** (U key or Matchup button) - Visualize the strategy matchup table
 
 Census data is tracked in `SimulationState.census_history` (list of `{strategy_name: percentage}` dicts), recorded each generation via `record_census()`.
 
@@ -128,10 +136,21 @@ The mix view allows configuring the initial distribution of strategies:
 
 Weights are stored in `SimulationState.strategy_weights` (dict of `{strategy_name: weight}`) and passed to `Grid.populate_randomly()` on simulation start.
 
+## Matchup Table
+
+The matchup view visualizes strategy performance in a color-coded grid:
+- Each cell shows how the row strategy scores against the column strategy
+- Colors range from green (high score/good) through grey (median) to red (low score/bad)
+- Hover over any cell to see the exact numerical score
+- The table is computed at simulation start based on rounds, matches, and noise parameters
+- Useful for understanding which strategies dominate others and identifying rock-paper-scissors dynamics
+
+The matchup table is stored in `Grid.matchups` as a 2D list where `matchups[i][j]` is the average score strategy i receives when playing against strategy j.
+
 ## Future Extensions
 
 The architecture supports additional screens/views:
 - UI components are reusable across different screens
 - Theme system allows easy visual customization
-- New views can follow the `StatsUI`/`MixUI` pattern (class with `draw()` method)
+- New views can follow the `StatsUI`/`MixUI`/`MatchupUI` pattern (class with `draw()` method)
 - Strategy weights automatically adapt when new strategies are added

@@ -11,7 +11,7 @@ import random
 from strategies import (always_defect, always_cooperate, tit_for_tat, pavlov, revenger,
                         prisoners_dilemma, tf2t, generous, prober)
 from grid import Grid
-from ui import DEFAULT_THEME, SimulatorUI, StatsUI, MixUI
+from ui import DEFAULT_THEME, SimulatorUI, StatsUI, MixUI, MatchupUI
 from ui.components import Button
 
 
@@ -133,6 +133,7 @@ class SimulationState:
 SCREEN_SIMULATOR = 0
 SCREEN_STATS = 1
 SCREEN_MIX = 2
+SCREEN_MATCHUP = 3
 
 
 async def main():
@@ -141,6 +142,7 @@ async def main():
     sim_ui = SimulatorUI(sim, DEFAULT_THEME)
     stats_ui = StatsUI(sim, DEFAULT_THEME)
     mix_ui = MixUI(sim, DEFAULT_THEME)
+    matchup_ui = MatchupUI(sim, DEFAULT_THEME)
 
     # Current screen
     current_screen = SCREEN_SIMULATOR
@@ -154,6 +156,10 @@ async def main():
         sim_ui.window_width - 305, sim_ui.window_height - sim_ui.bottom_panel_height + 60,
         90, 28, "Mix", (100, 80, 120), (130, 100, 160)
     )
+    btn_matchup = Button(
+        sim_ui.window_width - 410, sim_ui.window_height - sim_ui.bottom_panel_height + 60,
+        90, 28, "Matchup", (100, 100, 80), (130, 130, 100)
+    )
 
     def update_button_positions():
         """Update button positions after window/grid changes"""
@@ -161,6 +167,8 @@ async def main():
         btn_stats.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
         btn_mix.rect.x = sim_ui.window_width - 305
         btn_mix.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
+        btn_matchup.rect.x = sim_ui.window_width - 410
+        btn_matchup.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
 
     running = True
     pending_restart = False  # Track if we need to restart after param changes
@@ -188,6 +196,7 @@ async def main():
                     current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_STATS else SCREEN_STATS
                     btn_stats.text = "Grid" if current_screen == SCREEN_STATS else "Stats"
                     btn_mix.text = "Mix"
+                    btn_matchup.text = "Matchup"
                     continue
 
                 # M key toggles mix view
@@ -196,14 +205,25 @@ async def main():
                     current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_MIX else SCREEN_MIX
                     btn_mix.text = "Grid" if current_screen == SCREEN_MIX else "Mix"
                     btn_stats.text = "Stats"
+                    btn_matchup.text = "Matchup"
+                    continue
+
+                # U key toggles matchup view
+                if event.key == pygame.K_u:
+                    # If on matchup, go to simulator; otherwise go to matchup
+                    current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_MATCHUP else SCREEN_MATCHUP
+                    btn_matchup.text = "Grid" if current_screen == SCREEN_MATCHUP else "Matchup"
+                    btn_stats.text = "Stats"
+                    btn_mix.text = "Mix"
                     continue
 
                 # ESC returns to simulator from other screens, or quits from simulator
                 if event.key == pygame.K_ESCAPE:
-                    if current_screen in (SCREEN_STATS, SCREEN_MIX):
+                    if current_screen in (SCREEN_STATS, SCREEN_MIX, SCREEN_MATCHUP):
                         current_screen = SCREEN_SIMULATOR
                         btn_stats.text = "Stats"
                         btn_mix.text = "Mix"
+                        btn_matchup.text = "Matchup"
                     else:
                         running = False
                     continue
@@ -247,6 +267,7 @@ async def main():
                         current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_STATS else SCREEN_STATS
                         btn_stats.text = "Grid" if current_screen == SCREEN_STATS else "Stats"
                         btn_mix.text = "Mix"
+                        btn_matchup.text = "Matchup"
                         continue
 
                     # Check mix toggle button (works in all views)
@@ -255,6 +276,16 @@ async def main():
                         current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_MIX else SCREEN_MIX
                         btn_mix.text = "Grid" if current_screen == SCREEN_MIX else "Mix"
                         btn_stats.text = "Stats"
+                        btn_matchup.text = "Matchup"
+                        continue
+
+                    # Check matchup toggle button (works in all views)
+                    if btn_matchup.is_clicked(mouse_pos, True):
+                        # If on matchup, go to simulator; otherwise go to matchup
+                        current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_MATCHUP else SCREEN_MATCHUP
+                        btn_matchup.text = "Grid" if current_screen == SCREEN_MATCHUP else "Matchup"
+                        btn_stats.text = "Stats"
+                        btn_mix.text = "Mix"
                         continue
 
                     # Mix screen mouse handling
@@ -304,10 +335,13 @@ async def main():
         # Update hover states
         btn_stats.update(mouse_pos)
         btn_mix.update(mouse_pos)
+        btn_matchup.update(mouse_pos)
         if current_screen == SCREEN_SIMULATOR:
             sim_ui.update_controls(mouse_pos)
         elif current_screen == SCREEN_MIX:
             mix_ui.update(mouse_pos)
+        elif current_screen == SCREEN_MATCHUP:
+            matchup_ui.update(mouse_pos)
 
         # Auto-step when not paused
         if not sim.paused and current_time - sim.last_auto_step >= sim.auto_step_delay:
@@ -381,9 +415,38 @@ async def main():
             )
             sim_ui.window.blit(controls_text, (sim_ui.padding, panel_y + 95))
 
+        elif current_screen == SCREEN_MATCHUP:
+            # Draw matchup table screen
+            sim_ui.window.fill(DEFAULT_THEME.BG_COLOR)
+            matchup_ui.draw(sim_ui.window, sim_ui.window_width, sim_ui.window_height, sim_ui.bottom_panel_height)
+
+            # Draw bottom panel for matchup view
+            panel_y = sim_ui.window_height - sim_ui.bottom_panel_height
+            pygame.draw.rect(sim_ui.window, DEFAULT_THEME.PANEL_COLOR, (0, panel_y, sim_ui.window_width, sim_ui.bottom_panel_height))
+            pygame.draw.line(sim_ui.window, (60, 60, 65), (0, panel_y), (sim_ui.window_width, panel_y), 2)
+
+            # Title
+            title_text = DEFAULT_THEME.font_title.render("Strategy Matchups", True, DEFAULT_THEME.TEXT_COLOR)
+            sim_ui.window.blit(title_text, (sim_ui.padding, panel_y + 15))
+
+            # Subtitle
+            subtitle_text = DEFAULT_THEME.font_medium.render(
+                f"Based on {sim.rounds} rounds/match, {sim.matches} matches, {sim.noise:.1%} noise",
+                True, DEFAULT_THEME.TEXT_DIM_COLOR
+            )
+            sim_ui.window.blit(subtitle_text, (sim_ui.padding, panel_y + 50))
+
+            # Controls help for matchup view
+            controls_text = DEFAULT_THEME.font_small.render(
+                "U: Toggle View | SPACE: Step | P: Play/Pause | R: Restart | ESC: Back",
+                True, DEFAULT_THEME.TEXT_DIM_COLOR
+            )
+            sim_ui.window.blit(controls_text, (sim_ui.padding, panel_y + 95))
+
         # Draw screen toggle buttons (in all views)
         btn_stats.draw(sim_ui.window, DEFAULT_THEME.font_medium)
         btn_mix.draw(sim_ui.window, DEFAULT_THEME.font_medium)
+        btn_matchup.draw(sim_ui.window, DEFAULT_THEME.font_medium)
 
         pygame.display.flip()
         await asyncio.sleep(0)

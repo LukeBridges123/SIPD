@@ -9,9 +9,10 @@ from .components import Button, ParameterControl, StrategyWeightControl
 from .simulator_ui import SimulatorUI
 from .stats_ui import StatsUI
 from .mix_ui import MixUI
+from .matchup_ui import MatchupUI
 
 __all__ = [
     'UITheme', 'DEFAULT_THEME',
     'Button', 'ParameterControl', 'StrategyWeightControl',
-    'SimulatorUI', 'StatsUI', 'MixUI'
+    'SimulatorUI', 'StatsUI', 'MixUI', 'MatchupUI'
 ]
