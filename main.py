@@ -147,28 +147,41 @@ async def main():
     # Current screen
     current_screen = SCREEN_SIMULATOR
 
-    # Create screen toggle buttons (in bottom panel)
+    # View toggle button layout constants (matching SimulatorUI)
+    btn_width = 90
+    btn_spacing = 10
+    btn_y_offset = 60  # Offset from top of bottom panel
+
+    # Create screen toggle buttons (positioned to the left of the Reset button)
+    # Reset button is at window_width - btn_width - padding, so we start from there
+    def get_view_btn_x(index):
+        """Get x position for view toggle button by index (0 = rightmost)"""
+        # Start from Reset button position and go left
+        reset_x = sim_ui.window_width - btn_width - sim_ui.padding
+        return reset_x - (index + 1) * (btn_width + btn_spacing)
+
     btn_stats = Button(
-        sim_ui.window_width - 200, sim_ui.window_height - sim_ui.bottom_panel_height + 60,
-        90, 28, "Stats", (80, 100, 120), (100, 130, 160)
+        get_view_btn_x(0), sim_ui.window_height - sim_ui.bottom_panel_height + btn_y_offset,
+        btn_width, 28, "Stats", (80, 100, 120), (100, 130, 160)
     )
     btn_mix = Button(
-        sim_ui.window_width - 305, sim_ui.window_height - sim_ui.bottom_panel_height + 60,
-        90, 28, "Mix", (100, 80, 120), (130, 100, 160)
+        get_view_btn_x(1), sim_ui.window_height - sim_ui.bottom_panel_height + btn_y_offset,
+        btn_width, 28, "Mix", (100, 80, 120), (130, 100, 160)
     )
     btn_matchup = Button(
-        sim_ui.window_width - 410, sim_ui.window_height - sim_ui.bottom_panel_height + 60,
-        90, 28, "Matchup", (100, 100, 80), (130, 130, 100)
+        get_view_btn_x(2), sim_ui.window_height - sim_ui.bottom_panel_height + btn_y_offset,
+        btn_width, 28, "Matchup", (100, 100, 80), (130, 130, 100)
     )
+
+    # List of view buttons for easy iteration (rightmost to leftmost)
+    view_buttons = [btn_stats, btn_mix, btn_matchup]
 
     def update_button_positions():
         """Update button positions after window/grid changes"""
-        btn_stats.rect.x = sim_ui.window_width - 200
-        btn_stats.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
-        btn_mix.rect.x = sim_ui.window_width - 305
-        btn_mix.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
-        btn_matchup.rect.x = sim_ui.window_width - 410
-        btn_matchup.rect.y = sim_ui.window_height - sim_ui.bottom_panel_height + 60
+        btn_y = sim_ui.window_height - sim_ui.bottom_panel_height + btn_y_offset
+        for i, btn in enumerate(view_buttons):
+            btn.rect.x = get_view_btn_x(i)
+            btn.rect.y = btn_y
 
     running = True
     pending_restart = False  # Track if we need to restart after param changes

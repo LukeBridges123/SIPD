@@ -126,32 +126,53 @@ class MixUI:
         # Available area for content
         available_height = window_height - bottom_panel_height - self.padding
 
+        # Calculate control width (fixed max width for consistent appearance)
+        control_width = min(500, window_width - self.padding * 4)
+
+        # Panel dimensions
+        panel_top = 75
+        content_height = self._get_content_height()
+        panel_width = control_width + self.PANEL_PADDING * 2
+
+        # Help text dimensions
+        help_text_width = 200
+        help_text_margin = 35
+
+        # Check if there's room for help text
+        total_content_width = panel_width
+        show_help = False
+        if panel_width + help_text_margin + help_text_width + self.padding * 2 < window_width:
+            total_content_width = panel_width + help_text_margin + help_text_width
+            show_help = True
+
+        # Center the content horizontally
+        content_left = (window_width - total_content_width) // 2
+        content_left = max(self.padding, content_left)  # Don't go past left padding
+
+        # Position panel based on centered content
+        panel_left = content_left
+
         # Draw title
         title = self.theme.font_title.render("Initial Strategy Mix", True, self.theme.TEXT_COLOR)
-        window.blit(title, (self.padding, self.padding))
+        window.blit(title, (panel_left, self.padding))
 
         # Subtitle/instructions
         subtitle = self.theme.font_small.render(
             "Adjust weights to control starting population distribution",
             True, self.theme.TEXT_DIM_COLOR
         )
-        window.blit(subtitle, (self.padding, self.padding + 35))
-
-        # Calculate control width based on window
-        control_width = min(500, window_width - self.padding * 4)
+        window.blit(subtitle, (panel_left, self.padding + 35))
 
         # Panel for controls
-        panel_top = 75
-        content_height = self._get_content_height()
         panel_rect = pygame.Rect(
-            self.padding - 5, panel_top,
-            control_width + self.PANEL_PADDING * 2, content_height
+            panel_left - 5, panel_top,
+            panel_width, content_height
         )
         pygame.draw.rect(window, self.theme.PANEL_COLOR, panel_rect, border_radius=8)
 
         # Section title
         section_title = self.theme.font_medium.render("Strategy Weights", True, self.theme.TEXT_COLOR)
-        window.blit(section_title, (self.padding + 5, panel_top + 10))
+        window.blit(section_title, (panel_left + 5, panel_top + 10))
 
         # Get percentages for display
         percentages = self.sim.get_weight_percentages()
@@ -161,8 +182,8 @@ class MixUI:
         for ctrl in self.weight_controls:
             ctrl.width = control_width
             ctrl.slider_width = control_width - 200
-            ctrl.value_x = self.padding + control_width - 45
-            ctrl.update_position(self.padding + 5, control_y)
+            ctrl.value_x = panel_left + control_width - 45
+            ctrl.update_position(panel_left + 5, control_y)
 
             pct = percentages.get(ctrl.strategy_name, 0)
             ctrl.draw(window, self.theme.font_small, self.theme.font_small, percentage=pct)
@@ -170,13 +191,13 @@ class MixUI:
             control_y += self.CONTROL_HEIGHT + self.CONTROL_SPACING
 
         # Reset button
-        self.btn_reset.rect.x = self.padding + 5
+        self.btn_reset.rect.x = panel_left + 5
         self.btn_reset.rect.y = control_y + 10
         self.btn_reset.draw(window, self.theme.font_small)
 
-        # Help text on the right side
-        help_x = self.padding + control_width + 40
-        if help_x + 200 < window_width:
+        # Help text on the right side (only if there's room)
+        if show_help:
+            help_x = panel_left + panel_width + help_text_margin
             help_y = panel_top + 10
             help_lines = [
                 "How weights work:",

@@ -136,11 +136,11 @@ class MatchupUI:
         # Available area for content
         available_height = window_height - bottom_panel_height - self.padding
 
-        # Draw title
+        # Draw title (will be repositioned after centering calculation)
         title = self.theme.font_title.render("Strategy Matchup Table", True, self.theme.TEXT_COLOR)
-        window.blit(title, (self.padding, self.padding))
 
         if matchups is None:
+            window.blit(title, (self.padding, self.padding))
             no_data = self.theme.font_medium.render(
                 "No matchup data available",
                 True, self.theme.TEXT_DIM_COLOR
@@ -157,21 +157,44 @@ class MatchupUI:
         # Get score range for color scaling
         min_score, max_score = self._get_score_range(matchups)
 
-        # Grid positioning
-        grid_left = self.padding + self.LABEL_WIDTH
-        grid_top = 50 + self.HEADER_HEIGHT
-
-        self.grid_origin = (grid_left, grid_top)
-
         # Calculate grid dimensions
         grid_width = num_strategies * cell_size
         grid_height = num_strategies * cell_size
 
+        # Calculate panel dimensions
+        panel_width = self.LABEL_WIDTH + grid_width + self.PANEL_PADDING * 2
+        panel_height = self.HEADER_HEIGHT + grid_height + self.LEGEND_HEIGHT + self.PANEL_PADDING
+
+        # Help text dimensions (for calculating available space)
+        help_text_width = 200
+        help_text_margin = 25
+
+        # Check if there's room for help text
+        total_content_width = panel_width
+        show_help = False
+        if panel_width + help_text_margin + help_text_width + self.padding * 2 < window_width:
+            total_content_width = panel_width + help_text_margin + help_text_width
+            show_help = True
+
+        # Center the content horizontally
+        content_left = (window_width - total_content_width) // 2
+        content_left = max(self.padding, content_left)  # Don't go past left padding
+
+        # Position panel and grid based on centered content
+        panel_left = content_left
+        grid_left = panel_left + self.LABEL_WIDTH + self.PANEL_PADDING - 5
+        grid_top = 50 + self.HEADER_HEIGHT
+
+        self.grid_origin = (grid_left, grid_top)
+
+        # Draw title centered above panel
+        window.blit(title, (panel_left, self.padding))
+
         # Background panel
         panel_rect = pygame.Rect(
-            self.padding - 5, 45,
-            self.LABEL_WIDTH + grid_width + self.PANEL_PADDING * 2,
-            self.HEADER_HEIGHT + grid_height + self.LEGEND_HEIGHT + self.PANEL_PADDING
+            panel_left - 5, 45,
+            panel_width,
+            panel_height
         )
         pygame.draw.rect(window, self.theme.PANEL_COLOR, panel_rect, border_radius=8)
 
@@ -197,7 +220,7 @@ class MatchupUI:
             # Row label (strategy name on left)
             label = self.theme.font_tiny.render(strategy_names[row_idx], True, self.theme.TEXT_COLOR)
             label_y = grid_top + row_idx * cell_size + (cell_size - label.get_height()) // 2
-            window.blit(label, (self.padding + 5, label_y))
+            window.blit(label, (panel_left, label_y))
 
             for col_idx, score in enumerate(row_scores):
                 # Cell rectangle
@@ -228,7 +251,7 @@ class MatchupUI:
 
         # Legend title
         legend_title = self.theme.font_tiny.render("Score:", True, self.theme.TEXT_COLOR)
-        window.blit(legend_title, (self.padding + 5, legend_y + 5))
+        window.blit(legend_title, (panel_left, legend_y + 5))
 
         # Color gradient bar
         gradient_width = min(200, grid_width)
@@ -261,9 +284,9 @@ class MatchupUI:
         if self.hover_row >= 0 and self.hover_col >= 0:
             self._draw_tooltip(window, matchups, strategy_names, window_width, window_height)
 
-        # Instructions
-        help_x = grid_left + grid_width + 20
-        if help_x + 180 < window_width:
+        # Instructions (only if there's room)
+        if show_help:
+            help_x = panel_left + panel_width + help_text_margin
             help_y = grid_top
             help_lines = [
                 "Reading the table:",

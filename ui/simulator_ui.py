@@ -19,6 +19,12 @@ class SimulatorUI:
     PARAM_CONTROL_SPACING = 24  # Vertical spacing between parameter controls
     SECTION_DIVIDER_SPACING = 20  # Space around section dividers
 
+    # Bottom panel button layout
+    BUTTON_WIDTH = 90
+    BUTTON_SPACING = 10
+    NUM_LEFT_BUTTONS = 4  # Step, Play, Restart, New Seed
+    NUM_RIGHT_BUTTONS = 4  # Reset + view toggles (Stats, Mix, Matchup)
+
     def __init__(self, sim_state, theme):
         """Initialize the simulator UI
 
@@ -82,6 +88,21 @@ class SimulatorUI:
 
         return height
 
+    def _calculate_min_bottom_panel_width(self):
+        """Calculate minimum width needed for bottom panel buttons.
+
+        Returns the width needed to fit all buttons without overlap.
+        """
+        # Left buttons: padding + (button_width + spacing) * num - spacing
+        left_width = self.padding + self.NUM_LEFT_BUTTONS * (self.BUTTON_WIDTH + self.BUTTON_SPACING)
+
+        # Right buttons: (button_width + spacing) * num + padding
+        right_width = self.NUM_RIGHT_BUTTONS * (self.BUTTON_WIDTH + self.BUTTON_SPACING) + self.padding
+
+        # Total with gap between left and right
+        gap = 20
+        return left_width + gap + right_width
+
     def _init_window(self):
         """Initialize window and UI elements (called from __init__)"""
         # Calculate initial window size
@@ -94,9 +115,28 @@ class SimulatorUI:
         )
         pygame.display.set_caption("Spatial Iterated Prisoner's Dilemma")
 
+        # Recalculate cell size to fill the available space
+        # (window may be larger than grid needs due to minimum size requirements)
+        self._recalculate_cell_size()
+
         # Create buttons and controls
         self.create_buttons()
         self.create_parameter_controls()
+
+    def _recalculate_cell_size(self):
+        """Recalculate cell size to fill available space in the window"""
+        available_width = self.window_width - self.sidebar_width - self.padding * 3
+        available_height = self.window_height - self.bottom_panel_height - self.padding * 2
+
+        # Use board dimensions if available, otherwise use parameter values
+        cols = self.sim.board.cols if self.sim.board else self.sim.grid_cols
+        rows = self.sim.board.rows if self.sim.board else self.sim.grid_rows
+
+        self.cell_size = min(
+            available_width // cols,
+            available_height // rows
+        )
+        self.cell_size = max(2, self.cell_size)  # Minimum cell size
 
     def update_window_size(self):
         """Calculate window dimensions based on grid size and content requirements"""
@@ -109,9 +149,10 @@ class SimulatorUI:
         # Calculate minimum sizes based on content
         min_sidebar_height = self._calculate_min_sidebar_height()
         min_height = min_sidebar_height + self.bottom_panel_height + self.padding * 2
+        min_width = self._calculate_min_bottom_panel_width()
 
-        # Apply minimum sizes (750 width needed to fit all buttons without overlap)
-        self.window_width = max(self.window_width, 750)
+        # Apply minimum sizes
+        self.window_width = max(self.window_width, min_width)
         self.window_height = max(self.window_height, min_height, 400)  # At least 400 for usability
 
     def create_buttons(self):
@@ -221,37 +262,24 @@ class SimulatorUI:
             pygame.RESIZABLE
         )
 
-        # Recalculate cell size to fit grid in available space
-        available_width = self.window_width - self.sidebar_width - self.padding * 3
-        available_height = self.window_height - self.bottom_panel_height - self.padding * 2
-        self.cell_size = min(
-            available_width // self.sim.board.cols,
-            available_height // self.sim.board.rows
-        )
-        self.cell_size = max(2, self.cell_size)  # Minimum cell size
+        # Recalculate cell size to fill available space
+        self._recalculate_cell_size()
 
         self.create_buttons()
         self.create_parameter_controls()
 
     def handle_resize(self, new_width, new_height):
         """Handle window resize event"""
-        # Calculate dynamic minimum height based on sidebar content
+        # Calculate dynamic minimum sizes based on content
         min_sidebar_height = self._calculate_min_sidebar_height()
         min_height = max(min_sidebar_height + self.bottom_panel_height + self.padding * 2, 400)
+        min_width = self._calculate_min_bottom_panel_width()
 
-        self.window_width = max(new_width, 750)  # 750 needed to fit all buttons
+        self.window_width = max(new_width, min_width)
         self.window_height = max(new_height, min_height)
 
-        # Recalculate cell size to fit grid in available space
-        # Use actual board dimensions, not parameter values
-        available_width = self.window_width - self.sidebar_width - self.padding * 3
-        available_height = self.window_height - self.bottom_panel_height - self.padding * 2
-
-        self.cell_size = min(
-            available_width // self.sim.board.cols,
-            available_height // self.sim.board.rows
-        )
-        self.cell_size = max(2, self.cell_size)  # Minimum cell size
+        # Recalculate cell size to fill available space
+        self._recalculate_cell_size()
 
         # Recreate buttons with new positions
         self.create_buttons()
