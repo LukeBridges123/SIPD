@@ -28,6 +28,7 @@ pygbag main.py
 - **S**: Toggle stats view (or click Stats/Grid button)
 - **M**: Toggle mix view (or click Mix/Grid button)
 - **U**: Toggle matchup view (or click Matchup/Grid button)
+- **Y**: Toggle payoff view (or click Payoff/Grid button)
 - **ESC**: Quit (or return to grid from other views)
 - **Double-click parameter values**: Edit directly
 
@@ -49,9 +50,9 @@ The codebase is organized into modular components:
   - Cells copy the strategy of their highest-scoring neighbor (ties favor current strategy)
 
 - **`main.py`** - Application entry point and game state
-  - `SimulationState` class manages simulation parameters, board state, census history, and strategy weights
-  - `main()` async function contains event loop with screen switching (simulator/stats/mix/matchup)
-  - Delegates rendering to UI modules (`SimulatorUI`, `StatsUI`, `MixUI`, `MatchupUI`)
+  - `SimulationState` class manages simulation parameters, board state, census history, strategy weights, and payoff matrix
+  - `main()` async function contains event loop with screen switching (simulator/stats/mix/matchup/payoff)
+  - Delegates rendering to UI modules (`SimulatorUI`, `StatsUI`, `MixUI`, `MatchupUI`, `PayoffUI`)
 
 ### UI Package (`ui/`)
 
@@ -88,6 +89,12 @@ Modular UI components for visualization and interaction:
   - Hover over cells to see exact scores
   - Helps visualize which strategies dominate others
 
+- **`ui/payoff_ui.py`** - Payoff matrix editor view
+  - `PayoffUI` class allows editing the game's payoff matrix
+  - 2x2 grid with +/- buttons for each value (Player 1 and Player 2 payoffs)
+  - "Reset to Default" button restores standard Prisoner's Dilemma values
+  - Supports experimenting with different game types (Chicken, Stag Hunt, etc.)
+
 - **`ui/__init__.py`** - Clean import interface
 
 ## Adding a New Strategy
@@ -118,11 +125,12 @@ To modify appearance:
 
 ## Multiple Views
 
-The application supports four views:
+The application supports five views:
 - **Simulator view** - Main grid visualization with controls and parameters
 - **Stats view** (S key or Stats button) - Population statistics with census bars and time series chart
 - **Mix view** (M key or Mix button) - Configure initial strategy distribution before starting
 - **Matchup view** (U key or Matchup button) - Visualize the strategy matchup table
+- **Payoff view** (Y key or Payoff button) - Edit the game's payoff matrix
 
 Census data is tracked in `SimulationState.census_history` (list of `{strategy_name: percentage}` dicts), recorded each generation via `record_census()`.
 
@@ -147,10 +155,26 @@ The matchup view visualizes strategy performance in a color-coded grid:
 
 The matchup table is stored in `Grid.matchups` as a 2D list where `matchups[i][j]` is the average score strategy i receives when playing against strategy j.
 
+## Payoff Matrix
+
+The payoff view allows customizing the game's payoff matrix:
+- Matrix format: `matrix[row][col] = (player1_payoff, player2_payoff)` where row is P1's move, col is P2's move
+- Row/Col 0 = Defect, Row/Col 1 = Cooperate
+- Default is standard Prisoner's Dilemma: T=5, R=3, P=1, S=0 (Temptation > Reward > Punishment > Sucker)
+- Press R or N after editing to apply changes to the simulation
+
+The payoff matrix is stored in `SimulationState.payoff_matrix` and used to create a `Game` instance via `get_game()`.
+
+Example game types by payoff relationships:
+- **Prisoner's Dilemma**: T > R > P > S (default: 5, 3, 1, 0)
+- **Chicken/Hawk-Dove**: T > R > S > P
+- **Stag Hunt**: R > T > P > S
+- **Deadlock**: T > P > R > S
+
 ## Future Extensions
 
 The architecture supports additional screens/views:
 - UI components are reusable across different screens
 - Theme system allows easy visual customization
-- New views can follow the `StatsUI`/`MixUI`/`MatchupUI` pattern (class with `draw()` method)
+- New views can follow the `StatsUI`/`MixUI`/`MatchupUI`/`PayoffUI` pattern (class with `draw()` method)
 - Strategy weights automatically adapt when new strategies are added

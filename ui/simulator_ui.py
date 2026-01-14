@@ -23,7 +23,7 @@ class SimulatorUI:
     BUTTON_WIDTH = 90
     BUTTON_SPACING = 10
     NUM_LEFT_BUTTONS = 4  # Step, Play, Restart, New Seed
-    NUM_RIGHT_BUTTONS = 4  # Reset + view toggles (Stats, Mix, Matchup)
+    NUM_RIGHT_BUTTONS = 5  # Reset + view toggles (Stats, Mix, Matchup, Payoff)
 
     def __init__(self, sim_state, theme):
         """Initialize the simulator UI

@@ -9,9 +9,9 @@ import pygame
 import sys
 import random
 from strategies import (always_defect, always_cooperate, tit_for_tat, pavlov, revenger,
-                        prisoners_dilemma, tf2t, generous, prober)
+                        tf2t, generous, prober, Game)
 from grid import Grid
-from ui import DEFAULT_THEME, SimulatorUI, StatsUI, MixUI, MatchupUI
+from ui import DEFAULT_THEME, SimulatorUI, StatsUI, MixUI, MatchupUI, PayoffUI
 from ui.components import Button
 
 
@@ -43,6 +43,12 @@ class SimulationState:
         # Strategy weights for initial population (default: equal weights)
         # Keys are strategy names, values are weights (not percentages)
         self.strategy_weights = {str(s): 1.0 for s in self.strategies}
+
+        # Payoff matrix (default: prisoner's dilemma)
+        # Format: matrix[row][col] = (player1_payoff, player2_payoff)
+        # Row = player 1's move (0=defect, 1=cooperate)
+        # Col = player 2's move (0=defect, 1=cooperate)
+        self.payoff_matrix = self._default_payoff_matrix()
 
         # Simulation parameters
         self.reset_parameters()
@@ -79,7 +85,7 @@ class SimulationState:
             strategies=self.strategies,
             rows=self.grid_rows,
             cols=self.grid_cols,
-            game=prisoners_dilemma,
+            game=self.get_game(),
             rounds=self.rounds,
             noise=self.noise,
             mutation_rate=self.mutation_rate,
@@ -128,12 +134,28 @@ class SimulationState:
         """Reset all strategy weights to equal"""
         self.strategy_weights = {str(s): 1.0 for s in self.strategies}
 
+    def _default_payoff_matrix(self):
+        """Return the default prisoner's dilemma payoff matrix"""
+        return [
+            [(1, 1), (5, 0)],  # Row 0 (Defect): vs Defect, vs Cooperate
+            [(0, 5), (3, 3)]   # Row 1 (Cooperate): vs Defect, vs Cooperate
+        ]
+
+    def reset_payoff_matrix(self):
+        """Reset payoff matrix to default prisoner's dilemma"""
+        self.payoff_matrix = self._default_payoff_matrix()
+
+    def get_game(self):
+        """Get a Game object from the current payoff matrix"""
+        return Game(self.payoff_matrix)
+
 
 # Screen modes
 SCREEN_SIMULATOR = 0
 SCREEN_STATS = 1
 SCREEN_MIX = 2
 SCREEN_MATCHUP = 3
+SCREEN_PAYOFF = 4
 
 
 async def main():
@@ -143,6 +165,7 @@ async def main():
     stats_ui = StatsUI(sim, DEFAULT_THEME)
     mix_ui = MixUI(sim, DEFAULT_THEME)
     matchup_ui = MatchupUI(sim, DEFAULT_THEME)
+    payoff_ui = PayoffUI(sim, DEFAULT_THEME)
 
     # Current screen
     current_screen = SCREEN_SIMULATOR
@@ -172,9 +195,13 @@ async def main():
         get_view_btn_x(2), sim_ui.window_height - sim_ui.bottom_panel_height + btn_y_offset,
         btn_width, 28, "Matchup", (100, 100, 80), (130, 130, 100)
     )
+    btn_payoff = Button(
+        get_view_btn_x(3), sim_ui.window_height - sim_ui.bottom_panel_height + btn_y_offset,
+        btn_width, 28, "Payoff", (80, 100, 100), (100, 130, 130)
+    )
 
     # List of view buttons for easy iteration (rightmost to leftmost)
-    view_buttons = [btn_stats, btn_mix, btn_matchup]
+    view_buttons = [btn_stats, btn_mix, btn_matchup, btn_payoff]
 
     def update_button_positions():
         """Update button positions after window/grid changes"""
@@ -210,6 +237,7 @@ async def main():
                     btn_stats.text = "Grid" if current_screen == SCREEN_STATS else "Stats"
                     btn_mix.text = "Mix"
                     btn_matchup.text = "Matchup"
+                    btn_payoff.text = "Payoff"
                     continue
 
                 # M key toggles mix view
@@ -219,6 +247,7 @@ async def main():
                     btn_mix.text = "Grid" if current_screen == SCREEN_MIX else "Mix"
                     btn_stats.text = "Stats"
                     btn_matchup.text = "Matchup"
+                    btn_payoff.text = "Payoff"
                     continue
 
                 # U key toggles matchup view
@@ -228,15 +257,27 @@ async def main():
                     btn_matchup.text = "Grid" if current_screen == SCREEN_MATCHUP else "Matchup"
                     btn_stats.text = "Stats"
                     btn_mix.text = "Mix"
+                    btn_payoff.text = "Payoff"
+                    continue
+
+                # Y key toggles payoff view
+                if event.key == pygame.K_y:
+                    # If on payoff, go to simulator; otherwise go to payoff
+                    current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_PAYOFF else SCREEN_PAYOFF
+                    btn_payoff.text = "Grid" if current_screen == SCREEN_PAYOFF else "Payoff"
+                    btn_stats.text = "Stats"
+                    btn_mix.text = "Mix"
+                    btn_matchup.text = "Matchup"
                     continue
 
                 # ESC returns to simulator from other screens, or quits from simulator
                 if event.key == pygame.K_ESCAPE:
-                    if current_screen in (SCREEN_STATS, SCREEN_MIX, SCREEN_MATCHUP):
+                    if current_screen in (SCREEN_STATS, SCREEN_MIX, SCREEN_MATCHUP, SCREEN_PAYOFF):
                         current_screen = SCREEN_SIMULATOR
                         btn_stats.text = "Stats"
                         btn_mix.text = "Mix"
                         btn_matchup.text = "Matchup"
+                        btn_payoff.text = "Payoff"
                     else:
                         running = False
                     continue
@@ -281,6 +322,7 @@ async def main():
                         btn_stats.text = "Grid" if current_screen == SCREEN_STATS else "Stats"
                         btn_mix.text = "Mix"
                         btn_matchup.text = "Matchup"
+                        btn_payoff.text = "Payoff"
                         continue
 
                     # Check mix toggle button (works in all views)
@@ -290,6 +332,7 @@ async def main():
                         btn_mix.text = "Grid" if current_screen == SCREEN_MIX else "Mix"
                         btn_stats.text = "Stats"
                         btn_matchup.text = "Matchup"
+                        btn_payoff.text = "Payoff"
                         continue
 
                     # Check matchup toggle button (works in all views)
@@ -299,11 +342,27 @@ async def main():
                         btn_matchup.text = "Grid" if current_screen == SCREEN_MATCHUP else "Matchup"
                         btn_stats.text = "Stats"
                         btn_mix.text = "Mix"
+                        btn_payoff.text = "Payoff"
+                        continue
+
+                    # Check payoff toggle button (works in all views)
+                    if btn_payoff.is_clicked(mouse_pos, True):
+                        # If on payoff, go to simulator; otherwise go to payoff
+                        current_screen = SCREEN_SIMULATOR if current_screen == SCREEN_PAYOFF else SCREEN_PAYOFF
+                        btn_payoff.text = "Grid" if current_screen == SCREEN_PAYOFF else "Payoff"
+                        btn_stats.text = "Stats"
+                        btn_mix.text = "Mix"
+                        btn_matchup.text = "Matchup"
                         continue
 
                     # Mix screen mouse handling
                     if current_screen == SCREEN_MIX:
                         mix_ui.handle_mouse_down(mouse_pos)
+                        continue
+
+                    # Payoff screen mouse handling
+                    if current_screen == SCREEN_PAYOFF:
+                        payoff_ui.handle_mouse_down(mouse_pos)
                         continue
 
                     # Simulator-specific button handling
@@ -349,12 +408,15 @@ async def main():
         btn_stats.update(mouse_pos)
         btn_mix.update(mouse_pos)
         btn_matchup.update(mouse_pos)
+        btn_payoff.update(mouse_pos)
         if current_screen == SCREEN_SIMULATOR:
             sim_ui.update_controls(mouse_pos)
         elif current_screen == SCREEN_MIX:
             mix_ui.update(mouse_pos)
         elif current_screen == SCREEN_MATCHUP:
             matchup_ui.update(mouse_pos)
+        elif current_screen == SCREEN_PAYOFF:
+            payoff_ui.update(mouse_pos)
 
         # Auto-step when not paused
         if not sim.paused and current_time - sim.last_auto_step >= sim.auto_step_delay:
@@ -456,10 +518,39 @@ async def main():
             )
             sim_ui.window.blit(controls_text, (sim_ui.padding, panel_y + 95))
 
+        elif current_screen == SCREEN_PAYOFF:
+            # Draw payoff matrix editor screen
+            sim_ui.window.fill(DEFAULT_THEME.BG_COLOR)
+            payoff_ui.draw(sim_ui.window, sim_ui.window_width, sim_ui.window_height, sim_ui.bottom_panel_height)
+
+            # Draw bottom panel for payoff view
+            panel_y = sim_ui.window_height - sim_ui.bottom_panel_height
+            pygame.draw.rect(sim_ui.window, DEFAULT_THEME.PANEL_COLOR, (0, panel_y, sim_ui.window_width, sim_ui.bottom_panel_height))
+            pygame.draw.line(sim_ui.window, (60, 60, 65), (0, panel_y), (sim_ui.window_width, panel_y), 2)
+
+            # Title
+            title_text = DEFAULT_THEME.font_title.render("Edit Payoff Matrix", True, DEFAULT_THEME.TEXT_COLOR)
+            sim_ui.window.blit(title_text, (sim_ui.padding, panel_y + 15))
+
+            # Hint about applying
+            hint_text = DEFAULT_THEME.font_medium.render(
+                "Press R or N to apply changes to simulation",
+                True, (180, 180, 60)
+            )
+            sim_ui.window.blit(hint_text, (sim_ui.padding, panel_y + 50))
+
+            # Controls help for payoff view
+            controls_text = DEFAULT_THEME.font_small.render(
+                "Y: Toggle View | R: Restart (same seed) | N: New Seed | ESC: Back",
+                True, DEFAULT_THEME.TEXT_DIM_COLOR
+            )
+            sim_ui.window.blit(controls_text, (sim_ui.padding, panel_y + 95))
+
         # Draw screen toggle buttons (in all views)
         btn_stats.draw(sim_ui.window, DEFAULT_THEME.font_medium)
         btn_mix.draw(sim_ui.window, DEFAULT_THEME.font_medium)
         btn_matchup.draw(sim_ui.window, DEFAULT_THEME.font_medium)
+        btn_payoff.draw(sim_ui.window, DEFAULT_THEME.font_medium)
 
         pygame.display.flip()
         await asyncio.sleep(0)
